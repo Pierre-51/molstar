@@ -2,11 +2,11 @@
     "compilerOptions": {
         "declaration": true,
         "target": "es2018",
-        "alwaysStrict": true,
+        "alwaysStrict": false,
         "noImplicitAny": true,
         "noImplicitThis": true,
         "sourceMap": false,
-        "noUnusedLocals": true,
+        "noUnusedLocals": false,
         "strictNullChecks": true,
         "strictFunctionTypes": true,
         "module": "CommonJS",

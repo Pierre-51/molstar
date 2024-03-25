@@ -183,6 +183,7 @@ const DownloadStructure = StateAction.build({
         } else {
             for (const download of downloadParams) {
                 const data = await plugin.builders.data.download(download, { state: { isGhost: true } });
+                // @ts-ignore
                 const provider = format === 'auto'
                     ? plugin.dataFormats.auto(getFileNameInfo(Asset.getUrl(download.url)), data.cell?.obj!)
                     : plugin.dataFormats.get(format);

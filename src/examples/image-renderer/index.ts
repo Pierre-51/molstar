@@ -9,20 +9,37 @@
  * Run:   node lib/commonjs/examples/image-renderer 1cbs ../outputs_1cbs/
  */
 
-import { ArgumentParser } from 'argparse';
+import {ArgumentParser} from 'argparse';
 import fs from 'fs';
 import path from 'path';
 import gl from 'gl';
 import pngjs from 'pngjs';
 import jpegjs from 'jpeg-js';
 
-import { Download, ParseCif } from '../../mol-plugin-state/transforms/data';
-import { ModelFromTrajectory, StructureComponent, StructureFromModel, TrajectoryFromMmCif } from '../../mol-plugin-state/transforms/model';
-import { StructureRepresentation3D } from '../../mol-plugin-state/transforms/representation';
-import { HeadlessPluginContext } from '../../mol-plugin/headless-plugin-context';
-import { DefaultPluginSpec } from '../../mol-plugin/spec';
-import { ExternalModules, STYLIZED_POSTPROCESSING } from '../../mol-plugin/util/headless-screenshot';
-import { setFSModule } from '../../mol-util/data-source';
+import {Download, ParseCif} from '../../mol-plugin-state/transforms/data';
+import {
+    ModelFromTrajectory,
+    StructureComponent,
+    StructureFromModel,
+    TrajectoryFromMmCif
+} from '../../mol-plugin-state/transforms/model';
+import {StructureRepresentation3D} from '../../mol-plugin-state/transforms/representation';
+import {HeadlessPluginContext} from '../../mol-plugin/headless-plugin-context';
+import {DefaultPluginSpec} from '../../mol-plugin/spec';
+import {ExternalModules, STYLIZED_POSTPROCESSING} from '../../mol-plugin/util/headless-screenshot';
+import {setFSModule} from '../../mol-util/data-source';
+import {FxaaParams} from "../../mol-canvas3d/passes/fxaa";
+import {PostprocessingParams} from "../../mol-canvas3d/passes/postprocessing";
+import {ParamDefinition as PD} from "../../mol-util/param-definition";
+import {Canvas3DParams} from "../../mol-canvas3d/canvas3d";
+import {PluginCommands} from "../../mol-plugin/commands";
+import {Task} from "../../mol-task";
+import {encodeMp4Animation} from "../../extensions/mp4-export/encoder";
+import canvas from 'canvas';
+// import {encodeMp4Animation} from "../../extensions/mp4-export/encoder";
+
+// @ts-ignore
+global.ImageData = canvas.ImageData
 
 
 setFSModule(fs);
@@ -33,12 +50,86 @@ interface Args {
 }
 
 function parseArguments(): Args {
-    const parser = new ArgumentParser({ description: 'Example command-line application generating images of PDB structures' });
-    parser.add_argument('pdbId', { help: 'PDB identifier' });
-    parser.add_argument('outDirectory', { help: 'Directory for outputs' });
+    const parser = new ArgumentParser({description: 'Example command-line application generating images of PDB structures'});
+    parser.add_argument('pdbId', {help: 'PDB identifier'});
+    parser.add_argument('outDirectory', {help: 'Directory for outputs'});
     const args = parser.parse_args();
-    return { ...args };
+    return {...args};
 }
+
+
+async function exportMovie(plugin: HeadlessPluginContext) {
+    const task = Task.create('Export Movie', async ctx => {
+        const width = 800; // Adjust width and height as needed
+        const height = 600;
+        const anim = plugin.managers.animation.animations.find((a: {
+            name: string;
+        }) => a.name === 'built-in.animate-camera-spin');
+        if (!anim) throw new Error('Animation type not found');
+
+        // console.log(plugin.canvas3d?.camera)
+        // const controls = new Mp4Controls(plugin);
+        // let render = await controls.render();
+        // console.log(render.filename)
+
+        const movie = await encodeMp4Animation(plugin, ctx, {
+            animation: {
+                definition: anim,
+                params: {
+                    direction: 'cw',
+                    durationInMs: 4000,
+                    speed: 1,
+                },
+            },
+            // ...resolution,
+            postprocessing: {
+                ...PD.getDefaultValues(PostprocessingParams),
+                ...STYLIZED_POSTPROCESSING,
+                antialiasing: {
+                    name: 'fxaa',
+                    params: PD.getDefaultValues(FxaaParams),
+                },
+
+            },
+            width: width,
+            height: height,
+            viewport: {x: 0, y: 0, width, height},
+            quantizationParameter: 18, // this.behaviors.params.value.quantization,
+            pass: plugin.renderer.imagePass,
+        });
+        return {movie, filename: `video.mp4`};
+
+    });
+
+    return await plugin.runTask(task);
+}
+
+// async function exportVideo(plugin: PluginContext) {
+//     const task = Task.create('Export Animation', async ctx => {
+//         const width = 400;
+//         const height = 400;
+//         const anim = plugin.managers.animation.animations.find(a => a.name === 'built-in.animate-camera-spin');
+//         if (!anim) throw new Error('Animation type not found');
+//         new Mp4Controls(plugin)
+//         await encodeMp4Animation(plugin, ctx, {
+//             animation: {
+//                 definition: anim,
+//                 params: {
+//                     direction: 'cw',
+//                     durationInMs: 4000,
+//                     speed: 1,
+//                 },
+//             },
+//             width,
+//             height,
+//             viewport: { x: 0, y: 0, width, height },
+//             quantizationParameter: 18, // this.behaviors.params.value.quantization,
+//             pass: plugin.helpers.viewportScreenshot?.imagePass!,
+//         });
+//     });
+//     await plugin.runTask(task);
+//
+// }
 
 async function main() {
     const args = parseArguments();
@@ -48,40 +139,70 @@ async function main() {
     console.log('Outputs:', args.outDirectory);
 
     // Create a headless plugin
-    const externalModules: ExternalModules = { gl, pngjs, 'jpeg-js': jpegjs };
-    const plugin = new HeadlessPluginContext(externalModules, DefaultPluginSpec(), { width: 800, height: 800 });
+    const externalModules: ExternalModules = {gl, pngjs, 'jpeg-js': jpegjs};
+    const plugin = new HeadlessPluginContext(externalModules, DefaultPluginSpec(), {width: 800, height: 800},
+        {
+            webgl: {
+                alpha: true, antialias: true
+            },
+            canvas: {
+                cameraFog: {name: 'off', params: {}},
+                camera: {...PD.getDefaultValues(Canvas3DParams).camera, mode: 'perspective'},
+                postprocessing: {
+                    ...PD.getDefaultValues(PostprocessingParams),
+                    ...STYLIZED_POSTPROCESSING,
+                    antialiasing: {
+                        name: 'fxaa',
+                        params: PD.getDefaultValues(FxaaParams),
+                    },
+
+                }
+            }
+        }
+    );
     await plugin.init();
+
+
+    plugin.renderer.imagePass.setProps({transparentBackground: true});
+    await plugin.renderer.imagePass.updateBackground();
+
 
     // Download and visualize data in the plugin
     const update = plugin.build();
     const structure = update.toRoot()
-        .apply(Download, { url, isBinary: true })
+        .apply(Download, {url, isBinary: true})
         .apply(ParseCif)
         .apply(TrajectoryFromMmCif)
         .apply(ModelFromTrajectory)
-        .apply(StructureFromModel);
-    const polymer = structure.apply(StructureComponent, { type: { name: 'static', params: 'polymer' } });
-    const ligand = structure.apply(StructureComponent, { type: { name: 'static', params: 'ligand' } });
+        .apply(StructureFromModel)
+
+    const polymer = structure.apply(StructureComponent, {type: {name: 'static', params: 'polymer'}});
+    const ligand = structure.apply(StructureComponent, {type: {name: 'static', params: 'ligand'}});
     polymer.apply(StructureRepresentation3D, {
-        type: { name: 'cartoon', params: { alpha: 1 } },
-        colorTheme: { name: 'sequence-id', params: {} },
+        type: {name: 'cartoon', params: {alpha: 1, ignoreLight: true}},
+        colorTheme: {name: 'sequence-id', params: {}},
     });
     ligand.apply(StructureRepresentation3D, {
-        type: { name: 'ball-and-stick', params: { sizeFactor: 1 } },
-        colorTheme: { name: 'element-symbol', params: { carbonColor: { name: 'element-symbol', params: {} } } },
-        sizeTheme: { name: 'physical', params: {} },
+        type: {name: 'ball-and-stick', params: {sizeFactor: 0.15}},
+        sizeTheme: {name: 'physical', params: {}},
     });
+
     await update.commit();
 
+    plugin.canvas3d?.commit(true);
+    await PluginCommands.Camera.OrientAxes(plugin, {durationMs: 0});
+
     // Export images
-    fs.mkdirSync(args.outDirectory, { recursive: true });
-    await plugin.saveImage(path.join(args.outDirectory, 'basic.png'));
-    await plugin.saveImage(path.join(args.outDirectory, 'basic.jpg'));
-    await plugin.saveImage(path.join(args.outDirectory, 'large.png'), { width: 1600, height: 1200 });
-    await plugin.saveImage(path.join(args.outDirectory, 'large.jpg'), { width: 1600, height: 1200 });
+    fs.mkdirSync(args.outDirectory, {recursive: true});
+
+    const movie = await exportMovie(plugin);
+    // const movie = new ArrayBuffer(mov.movie)
+    fs.writeFileSync(path.join(args.outDirectory, 'video.mp4'), Buffer.from(new Uint8Array(movie.movie)))
+
+
+    // console.log(movie)
+
     await plugin.saveImage(path.join(args.outDirectory, 'stylized.png'), undefined, STYLIZED_POSTPROCESSING);
-    await plugin.saveImage(path.join(args.outDirectory, 'stylized.jpg'), undefined, STYLIZED_POSTPROCESSING);
-    await plugin.saveImage(path.join(args.outDirectory, 'stylized-compressed-jpg.jpg'), undefined, STYLIZED_POSTPROCESSING, undefined, 10);
 
     // Export state loadable in Mol* Viewer
     await plugin.saveStateSnapshot(path.join(args.outDirectory, 'molstar-state.molj'));

@@ -91,8 +91,10 @@ export const enum NumberTypes {
     Int = 0,
     Float = 1,
     Scientific = 2,
+    // @ts-ignore
     NaN = 3
 }
+
 
 export const NumberType = {
     Int: NumberTypes.Int,
