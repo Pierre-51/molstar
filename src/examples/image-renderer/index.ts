@@ -34,7 +34,7 @@ import {ParamDefinition as PD} from "../../mol-util/param-definition";
 import {Canvas3DParams} from "../../mol-canvas3d/canvas3d";
 import {PluginCommands} from "../../mol-plugin/commands";
 import {Task} from "../../mol-task";
-import {encodeMp4Animation} from "../../extensions/mp4-export/encoder";
+import {encodeMp4Animation, encodeWebmAnimation} from "../../extensions/mp4-export/encoder";
 import canvas from 'canvas';
 // import {encodeMp4Animation} from "../../extensions/mp4-export/encoder";
 
@@ -60,8 +60,8 @@ function parseArguments(): Args {
 
 async function exportMovie(plugin: HeadlessPluginContext) {
     const task = Task.create('Export Movie', async ctx => {
-        const width = 800; // Adjust width and height as needed
-        const height = 600;
+        const width = 1280; // Adjust width and height as needed
+        const height = 720;
         const anim = plugin.managers.animation.animations.find((a: {
             name: string;
         }) => a.name === 'built-in.animate-camera-spin');
@@ -72,12 +72,12 @@ async function exportMovie(plugin: HeadlessPluginContext) {
         // let render = await controls.render();
         // console.log(render.filename)
 
-        const movie = await encodeMp4Animation(plugin, ctx, {
+        const movie = await encodeWebmAnimation(plugin, ctx, {
             animation: {
                 definition: anim,
                 params: {
                     direction: 'cw',
-                    durationInMs: 4000,
+                    durationInMs: 5000,
                     speed: 1,
                 },
             },
@@ -97,41 +97,15 @@ async function exportMovie(plugin: HeadlessPluginContext) {
             quantizationParameter: 18, // this.behaviors.params.value.quantization,
             pass: plugin.renderer.imagePass,
         });
-        return {movie, filename: `video.mp4`};
+        return {movie, filename: `video.webm`};
 
     });
 
     return await plugin.runTask(task);
 }
 
-// async function exportVideo(plugin: PluginContext) {
-//     const task = Task.create('Export Animation', async ctx => {
-//         const width = 400;
-//         const height = 400;
-//         const anim = plugin.managers.animation.animations.find(a => a.name === 'built-in.animate-camera-spin');
-//         if (!anim) throw new Error('Animation type not found');
-//         new Mp4Controls(plugin)
-//         await encodeMp4Animation(plugin, ctx, {
-//             animation: {
-//                 definition: anim,
-//                 params: {
-//                     direction: 'cw',
-//                     durationInMs: 4000,
-//                     speed: 1,
-//                 },
-//             },
-//             width,
-//             height,
-//             viewport: { x: 0, y: 0, width, height },
-//             quantizationParameter: 18, // this.behaviors.params.value.quantization,
-//             pass: plugin.helpers.viewportScreenshot?.imagePass!,
-//         });
-//     });
-//     await plugin.runTask(task);
-//
-// }
-
 async function main() {
+    console.time("Video Processing");
     const args = parseArguments();
     const url = `https://www.ebi.ac.uk/pdbe/entry-files/download/${args.pdbId}.bcif`;
     console.log('PDB ID:', args.pdbId);
@@ -143,7 +117,16 @@ async function main() {
     const plugin = new HeadlessPluginContext(externalModules, DefaultPluginSpec(), {width: 800, height: 800},
         {
             webgl: {
-                alpha: true, antialias: true
+                alpha: true, // Set to true if you need alpha
+                antialias: true, // Set to true if you need antialiasing
+                premultipliedAlpha: true, // Set to true if you need premultiplied alpha
+                stencil: false, // Set to true if you need stencil buffer
+                depth: true, // Set to true if you need depth buffer
+                preserveDrawingBuffer: true, // Set to true if you need to preserve drawing buffer
+                // @ts-ignore
+                preferLowPowerToHighPerformance: false, // Set to true if you prefer low power to high performance
+                failIfMajorPerformanceCaveat: false, // Set to true if you want context creation to fail if the performance of a WebGL context would be dramatically lower than that of a native application
+
             },
             canvas: {
                 cameraFog: {name: 'off', params: {}},
@@ -195,21 +178,25 @@ async function main() {
     // Export images
     fs.mkdirSync(args.outDirectory, {recursive: true});
 
-    const movie = await exportMovie(plugin);
+    await exportMovie(plugin);
+    // console.log(movie)
     // const movie = new ArrayBuffer(mov.movie)
-    fs.writeFileSync(path.join(args.outDirectory, 'video.mp4'), Buffer.from(new Uint8Array(movie.movie)))
+    // fs.writeFileSync(path.join(args.outDirectory, 'videoo.webm'), Buffer.from(new Uint8Array(movie.movie)))
+    // fs.writeFileSync(path.join(args.outDirectory, 'videoo.webm'), movie.movie)
 
 
     // console.log(movie)
 
-    await plugin.saveImage(path.join(args.outDirectory, 'stylized.png'), undefined, STYLIZED_POSTPROCESSING);
+    // await plugin.saveImage(path.join(args.outDirectory, 'stylized.png'), undefined, STYLIZED_POSTPROCESSING);
 
     // Export state loadable in Mol* Viewer
-    await plugin.saveStateSnapshot(path.join(args.outDirectory, 'molstar-state.molj'));
+    // await plugin.saveStateSnapshot(path.join(args.outDirectory, 'molstar-state.molj'));
 
+    console.timeEnd("Video Processing");
     // Cleanup
     await plugin.clear();
     plugin.dispose();
+
 }
 
 main();

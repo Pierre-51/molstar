@@ -59,6 +59,7 @@ const sharedConfig = {
         fallback: {
             fs: false,
             crypto: require.resolve('crypto-browserify'),
+            "child_process" : false,
             path: require.resolve('path-browserify'),
             stream: require.resolve('stream-browserify'),
         }

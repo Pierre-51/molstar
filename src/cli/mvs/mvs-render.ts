@@ -108,7 +108,7 @@ async function main(args: Args): Promise<void> {
     plugin.dispose();
 }
 
-async function exportVideo(plugin: PluginContext) {
+async function exportVideo(plugin: HeadlessPluginContext) {
     const task = Task.create('Export Animation', async ctx => {
         const width = 400;
         const height = 400;

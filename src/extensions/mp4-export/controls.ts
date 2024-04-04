@@ -4,13 +4,14 @@
  * @author David Sehnal <david.sehnal@gmail.com>
  */
 
-import { debounceTime } from 'rxjs/operators';
-import { PluginStateAnimation } from '../../mol-plugin-state/animation/model';
-import { PluginComponent } from '../../mol-plugin-state/component';
-import { PluginContext } from '../../mol-plugin/context';
-import { Task } from '../../mol-task';
-import { ParamDefinition as PD } from '../../mol-util/param-definition';
-import { encodeMp4Animation } from './encoder';
+import {debounceTime} from 'rxjs/operators';
+import {PluginStateAnimation} from '../../mol-plugin-state/animation/model';
+import {PluginComponent} from '../../mol-plugin-state/component';
+import {PluginContext} from '../../mol-plugin/context';
+import {Task} from '../../mol-task';
+import {ParamDefinition as PD} from '../../mol-util/param-definition';
+import {encodeMp4Animation} from './encoder';
+import {HeadlessPluginContext} from "../../mol-plugin/headless-plugin-context";
 
 export interface Mp4AnimationInfo {
     width: number,
@@ -18,7 +19,7 @@ export interface Mp4AnimationInfo {
 }
 
 export const Mp4AnimationParams = {
-    quantization: PD.Numeric(18, { min: 10, max: 51 }, { description: 'Lower is better, but slower.' })
+    quantization: PD.Numeric(18, {min: 10, max: 51}, {description: 'Lower is better, but slower.'})
 };
 
 export class Mp4Controls extends PluginComponent {
@@ -26,10 +27,10 @@ export class Mp4Controls extends PluginComponent {
     private animations: PluginStateAnimation[] = [];
 
     readonly behaviors = {
-        animations: this.ev.behavior<PD.Params>({ }),
+        animations: this.ev.behavior<PD.Params>({}),
         current: this.ev.behavior<{ anim: PluginStateAnimation, params: PD.Params, values: any } | undefined>(void 0),
-        canApply: this.ev.behavior<PluginStateAnimation.CanApply>({ canApply: false }),
-        info: this.ev.behavior<Mp4AnimationInfo>({ width: 0, height: 0 }),
+        canApply: this.ev.behavior<PluginStateAnimation.CanApply>({canApply: false}),
+        info: this.ev.behavior<Mp4AnimationInfo>({width: 0, height: 0}),
         params: this.ev.behavior<PD.Values<typeof Mp4AnimationParams>>(PD.getDefaultValues(Mp4AnimationParams))
     };
 
@@ -43,12 +44,12 @@ export class Mp4Controls extends PluginComponent {
         const params = anim.params(this.plugin) as PD.Params;
         const values = PD.getDefaultValues(params);
 
-        this.behaviors.current.next({ anim, params, values });
-        this.behaviors.canApply.next(anim.canApply?.(this.plugin) ?? { canApply: true });
+        this.behaviors.current.next({anim, params, values});
+        this.behaviors.canApply.next(anim.canApply?.(this.plugin) ?? {canApply: true});
     }
 
     setCurrentParams(values: any) {
-        this.behaviors.current.next({ ...this.behaviors.current.value!, values });
+        this.behaviors.current.next({...this.behaviors.current.value!, values});
     }
 
     get current() {
@@ -71,14 +72,14 @@ export class Mp4Controls extends PluginComponent {
                 });
 
                 const filename = anim.anim.display.name.toLowerCase().replace(/\s/g, '-').replace(/[^a-z0-9_\-]/g, '');
-                return { movie, filename: `${this.plugin.helpers.viewportScreenshot?.getFilename('')}_${filename}.mp4` };
+                return {movie, filename: `${this.plugin.helpers.viewportScreenshot?.getFilename('')}_${filename}.mp4`};
             } catch (e) {
                 this.plugin.log.error('Error during animation export');
                 throw e;
             }
         });
 
-        return this.plugin.runTask(task, { useOverlay: true });
+        return this.plugin.runTask(task, {useOverlay: true});
     }
 
     private get manager() {
@@ -90,7 +91,7 @@ export class Mp4Controls extends PluginComponent {
         const size = helper?.getSizeAndViewport();
         if (!size) return;
 
-        this.behaviors.info.next({ width: size.viewport.width, height: size.viewport.height });
+        this.behaviors.info.next({width: size.viewport.width, height: size.viewport.height});
     }
 
     private sync() {
@@ -104,7 +105,7 @@ export class Mp4Controls extends PluginComponent {
         const params = {
             current: PD.Select(animations[0]?.name,
                 animations.map(a => [a.name, a.display.name] as [string, string]),
-                { label: 'Animation' })
+                {label: 'Animation'})
         };
 
         const current = this.behaviors.current.value;
@@ -137,7 +138,7 @@ export class Mp4Controls extends PluginComponent {
     private updateCanApply(b?: any) {
         const anim = this.current;
         if (!b && anim) {
-            this.behaviors.canApply.next(anim.anim.canApply?.(this.plugin) ?? { canApply: true });
+            this.behaviors.canApply.next(anim.anim.canApply?.(this.plugin) ?? {canApply: true});
         }
     }
 
