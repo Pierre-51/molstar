@@ -191,13 +191,11 @@ export async function encodeWebmAnimation<A extends PluginStateAnimation>(plugin
                 `-s ${width}x${height}`,
                 `-pix_fmt rgba`,
                 `-r ${fps}`,
-                '-c:a aac'
             ])
             .inputFormat('rawvideo')
             .addOption([
                 '-tag:v hvc1',
                 '-alpha_quality 0.5',
-                '-constant_bit_rate true'
             ])
             .on('end', () => {
                 console.timeEnd(outputFilename)
@@ -209,7 +207,6 @@ export async function encodeWebmAnimation<A extends PluginStateAnimation>(plugin
                 `-s ${width}x${height}`,
                 `-pix_fmt rgba`,
                 `-r ${fps}`,
-                '-c:a aac'
             ])
             .inputFormat('rawvideo')
             .addOption([
