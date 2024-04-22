@@ -36,6 +36,7 @@ import {PluginCommands} from "../../mol-plugin/commands";
 import {Task} from "../../mol-task";
 import {encodeMp4Animation, encodeWebmAnimation} from "../../extensions/mp4-export/encoder";
 import canvas from 'canvas';
+import {RootStructureDefinition} from "../../mol-plugin-state/helpers/root-structure";
 // import {encodeMp4Animation} from "../../extensions/mp4-export/encoder";
 
 // @ts-ignore
@@ -72,7 +73,7 @@ async function exportMovie(plugin: HeadlessPluginContext) {
         // let render = await controls.render();
         // console.log(render.filename)
 
-        const movie = await encodeWebmAnimation(plugin, ctx, {
+        const movie = await encodeMp4Animation(plugin, ctx, {
             animation: {
                 definition: anim,
                 params: {
@@ -105,9 +106,10 @@ async function exportMovie(plugin: HeadlessPluginContext) {
 }
 
 async function main() {
-    console.time("Video Processing");
+    console.time("Video export");
     const args = parseArguments();
-    const url = `https://www.ebi.ac.uk/pdbe/entry-files/download/${args.pdbId}.bcif`;
+    const url = `https://www.ebi.ac.uk/pdbe/entry-files/download/5my9_updated.cif`;
+    // const url = `https://www.ebi.ac.uk/pdbe/entry-files/download/${args.pdbId}.bcif`;
     console.log('PDB ID:', args.pdbId);
     console.log('Source URL:', url);
     console.log('Outputs:', args.outDirectory);
@@ -153,17 +155,21 @@ async function main() {
     // Download and visualize data in the plugin
     const update = plugin.build();
     const structure = update.toRoot()
-        .apply(Download, {url, isBinary: true})
+        .apply(Download, {url, isBinary: false})
         .apply(ParseCif)
         .apply(TrajectoryFromMmCif)
         .apply(ModelFromTrajectory)
-        .apply(StructureFromModel)
+        .apply(StructureFromModel, {type : {name:'assembly', params:{}}})
+    console.log(structure)
 
     const polymer = structure.apply(StructureComponent, {type: {name: 'static', params: 'polymer'}});
     const ligand = structure.apply(StructureComponent, {type: {name: 'static', params: 'ligand'}});
     polymer.apply(StructureRepresentation3D, {
         type: {name: 'cartoon', params: {alpha: 1, ignoreLight: true}},
-        colorTheme: {name: 'sequence-id', params: {}},
+        // colorTheme: {name:'uncertainty', params:{}}
+        // colorTheme: {name: 'sequence-id', params: {}},
+        colorTheme: {name: 'chain-id', params: {}},
+
     });
     ligand.apply(StructureRepresentation3D, {
         type: {name: 'ball-and-stick', params: {sizeFactor: 0.15}},
@@ -177,8 +183,10 @@ async function main() {
 
     // Export images
     fs.mkdirSync(args.outDirectory, {recursive: true});
-
+    // console.timeEnd("Video Processing");
     await exportMovie(plugin);
+
+
     // console.log(movie)
     // const movie = new ArrayBuffer(mov.movie)
     // fs.writeFileSync(path.join(args.outDirectory, 'videoo.webm'), Buffer.from(new Uint8Array(movie.movie)))
@@ -187,12 +195,12 @@ async function main() {
 
     // console.log(movie)
 
-    // await plugin.saveImage(path.join(args.outDirectory, 'stylized.png'), undefined, STYLIZED_POSTPROCESSING);
+    await plugin.saveImage(path.join(args.outDirectory, 'stylized.png'), undefined, STYLIZED_POSTPROCESSING);
 
     // Export state loadable in Mol* Viewer
     // await plugin.saveStateSnapshot(path.join(args.outDirectory, 'molstar-state.molj'));
 
-    console.timeEnd("Video Processing");
+
     // Cleanup
     await plugin.clear();
     plugin.dispose();
