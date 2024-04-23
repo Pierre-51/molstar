@@ -109,88 +109,23 @@ async function processFilesInDirectory(input: string, outDirectory: string) {
 
             if (file.endsWith('.pdb')) {
                 console.log('Starting to process:', file)
-                await processFilePdb(path.join(input, file), outDirectory);
+                await processFile(path.join(input, file), outDirectory,'pdb');
             } else {
                 console.log('Starting to process:', file)
-                await processFile(path.join(input, file), outDirectory);
+                await processFile(path.join(input, file), outDirectory, 'cif');
             }
         }
     } else {
         console.log('File input:', path.parse(input).base);
         if (input.endsWith('.pdb')) {
-            await processFilePdb(input, outDirectory);
+            await processFile(input, outDirectory, 'pdb');
         } else {
-            await processFile(input, outDirectory);
+            await processFile(input, outDirectory, 'cif');
         }
     }
 }
 
-async function processFilePdb(filePath: string, outDirectory: string) {
-    const url = `file://${filePath}`;
-    const externalModules: ExternalModules = {gl, pngjs, 'jpeg-js': jpegjs};
-    const plugin = new HeadlessPluginContext(externalModules, DefaultPluginSpec(), {width: 800, height: 800},
-        {
-            webgl: {
-                alpha: true,
-                antialias: true,
-                premultipliedAlpha: true,
-                stencil: false,
-                depth: true,
-                preserveDrawingBuffer: true,
-                // @ts-ignore
-                preferLowPowerToHighPerformance: false,
-                failIfMajorPerformanceCaveat: false,
-            },
-            canvas: {
-                cameraFog: {name: 'off', params: {}},
-                camera: {...PD.getDefaultValues(Canvas3DParams).camera, mode: 'perspective'},
-                postprocessing: {
-                    ...PD.getDefaultValues(PostprocessingParams),
-                    ...STYLIZED_POSTPROCESSING,
-                    antialiasing: {
-                        name: 'fxaa',
-                        params: PD.getDefaultValues(FxaaParams),
-                    },
-
-                }
-            }
-        }
-    );
-    await plugin.init();
-
-    plugin.renderer.imagePass.setProps({transparentBackground: true});
-    await plugin.renderer.imagePass.updateBackground();
-
-    const update = plugin.build();
-    const structure = update.toRoot()
-        .apply(Download, {url})
-        .apply(TrajectoryFromPDB)
-        .apply(ModelFromTrajectory)
-        .apply(StructureFromModel, {type: {name: 'assembly', params: {}}});
-    const polymer = structure.apply(StructureComponent, {type: {name: 'static', params: 'polymer'}});
-    const ligand = structure.apply(StructureComponent, {type: {name: 'static', params: 'ligand'}});
-    polymer.apply(StructureRepresentation3D, {
-        type: {name: 'cartoon', params: {alpha: 1, ignoreLight: true}},
-        colorTheme: {name: 'uniform', params: {value: Color(0x888888)}},
-    });
-    ligand.apply(StructureRepresentation3D, {
-        type: {name: 'ball-and-stick', params: {sizeFactor: 0.15}},
-        sizeTheme: {name: 'physical', params: {}},
-    });
-
-    await update.commit();
-    plugin.canvas3d?.commit(true);
-    await PluginCommands.Camera.OrientAxes(plugin, {durationMs: 0});
-    plugin.canvas3d?.commit(true);
-
-    fs.mkdirSync(outDirectory, {recursive: true});
-    const outputFilePath = outDirectory + path.basename(url, path.extname(url))
-    await exportMovie(plugin, outputFilePath);
-    await plugin.clear();
-    plugin.dispose();
-}
-
-async function processFile(filePath: string, outDirectory: string) {
+async function processFile(filePath: string, outDirectory: string, fileType: 'pdb' | 'cif') {
     const url = `file://${filePath}`;
     const externalModules: ExternalModules = {gl, pngjs, 'jpeg-js': jpegjs};
     const plugin = new HeadlessPluginContext(externalModules, DefaultPluginSpec(), {width: 800, height: 800},
@@ -226,14 +161,26 @@ async function processFile(filePath: string, outDirectory: string) {
     const update = plugin.build();
     plugin.renderer.imagePass.setProps({transparentBackground: true});
     await plugin.renderer.imagePass.updateBackground();
-    const structure = update.toRoot()
-        .apply(Download, {url})
-        .apply(ParseCif)
-        .apply(TrajectoryFromMmCif)
-        .apply(ModelFromTrajectory)
-        .apply(StructureFromModel, {type: {name: 'assembly', params: {}}});
 
+    let structure;
+    if (fileType === 'pdb') {
+        structure = update.toRoot()
+            .apply(Download, {url})
+            .apply(TrajectoryFromPDB)
+            .apply(ModelFromTrajectory)
+            .apply(StructureFromModel, {type: {name: 'assembly', params: {}}});
+    } else if (fileType === 'cif') {
+        structure = update.toRoot()
+            .apply(Download, {url})
+            .apply(ParseCif)
+            .apply(TrajectoryFromMmCif)
+            .apply(ModelFromTrajectory)
+            .apply(StructureFromModel, {type: {name: 'assembly', params: {}}});
+    }
+
+    // @ts-ignore
     const polymer = structure.apply(StructureComponent, {type: {name: 'static', params: 'polymer'}});
+    // @ts-ignore
     const ligand = structure.apply(StructureComponent, {type: {name: 'static', params: 'ligand'}});
     polymer.apply(StructureRepresentation3D, {
         type: {name: 'cartoon', params: {alpha: 1, ignoreLight: true}},
@@ -249,13 +196,144 @@ async function processFile(filePath: string, outDirectory: string) {
     await PluginCommands.Camera.OrientAxes(plugin, {durationMs: 0});
     plugin.canvas3d?.commit(true);
 
-
     fs.mkdirSync(outDirectory, {recursive: true});
     const outputFilePath = outDirectory + path.basename(url, path.extname(url))
     await exportMovie(plugin, outputFilePath);
     await plugin.clear();
     plugin.dispose();
 }
+
+// async function processFilePdb(filePath: string, outDirectory: string) {
+//     const url = `file://${filePath}`;
+//     const externalModules: ExternalModules = {gl, pngjs, 'jpeg-js': jpegjs};
+//     const plugin = new HeadlessPluginContext(externalModules, DefaultPluginSpec(), {width: 800, height: 800},
+//         {
+//             webgl: {
+//                 alpha: true,
+//                 antialias: true,
+//                 premultipliedAlpha: true,
+//                 stencil: false,
+//                 depth: true,
+//                 preserveDrawingBuffer: true,
+//                 // @ts-ignore
+//                 preferLowPowerToHighPerformance: false,
+//                 failIfMajorPerformanceCaveat: false,
+//             },
+//             canvas: {
+//                 cameraFog: {name: 'off', params: {}},
+//                 camera: {...PD.getDefaultValues(Canvas3DParams).camera, mode: 'perspective'},
+//                 postprocessing: {
+//                     ...PD.getDefaultValues(PostprocessingParams),
+//                     ...STYLIZED_POSTPROCESSING,
+//                     antialiasing: {
+//                         name: 'fxaa',
+//                         params: PD.getDefaultValues(FxaaParams),
+//                     },
+//
+//                 }
+//             }
+//         }
+//     );
+//     await plugin.init();
+//
+//     plugin.renderer.imagePass.setProps({transparentBackground: true});
+//     await plugin.renderer.imagePass.updateBackground();
+//
+//     const update = plugin.build();
+//     const structure = update.toRoot()
+//         .apply(Download, {url})
+//         .apply(TrajectoryFromPDB)
+//         .apply(ModelFromTrajectory)
+//         .apply(StructureFromModel, {type: {name: 'assembly', params: {}}});
+//     const polymer = structure.apply(StructureComponent, {type: {name: 'static', params: 'polymer'}});
+//     const ligand = structure.apply(StructureComponent, {type: {name: 'static', params: 'ligand'}});
+//     polymer.apply(StructureRepresentation3D, {
+//         type: {name: 'cartoon', params: {alpha: 1, ignoreLight: true}},
+//         colorTheme: {name: 'uniform', params: {value: Color(0x888888)}},
+//     });
+//     ligand.apply(StructureRepresentation3D, {
+//         type: {name: 'ball-and-stick', params: {sizeFactor: 0.15}},
+//         sizeTheme: {name: 'physical', params: {}},
+//     });
+//
+//     await update.commit();
+//     plugin.canvas3d?.commit(true);
+//     await PluginCommands.Camera.OrientAxes(plugin, {durationMs: 0});
+//     plugin.canvas3d?.commit(true);
+//
+//     fs.mkdirSync(outDirectory, {recursive: true});
+//     const outputFilePath = outDirectory + path.basename(url, path.extname(url))
+//     await exportMovie(plugin, outputFilePath);
+//     await plugin.clear();
+//     plugin.dispose();
+// }
+//
+// async function processFile(filePath: string, outDirectory: string) {
+//     const url = `file://${filePath}`;
+//     const externalModules: ExternalModules = {gl, pngjs, 'jpeg-js': jpegjs};
+//     const plugin = new HeadlessPluginContext(externalModules, DefaultPluginSpec(), {width: 800, height: 800},
+//         {
+//             webgl: {
+//                 alpha: true,
+//                 antialias: true,
+//                 premultipliedAlpha: true,
+//                 stencil: false,
+//                 depth: true,
+//                 preserveDrawingBuffer: true,
+//                 // @ts-ignore
+//                 preferLowPowerToHighPerformance: false,
+//                 failIfMajorPerformanceCaveat: false,
+//             },
+//             canvas: {
+//                 cameraFog: {name: 'off', params: {}},
+//                 camera: {...PD.getDefaultValues(Canvas3DParams).camera, mode: 'perspective'},
+//                 postprocessing: {
+//                     ...PD.getDefaultValues(PostprocessingParams),
+//                     ...STYLIZED_POSTPROCESSING,
+//                     antialiasing: {
+//                         name: 'fxaa',
+//                         params: PD.getDefaultValues(FxaaParams),
+//                     },
+//
+//                 }
+//             }
+//         }
+//     );
+//     await plugin.init();
+//
+//     const update = plugin.build();
+//     plugin.renderer.imagePass.setProps({transparentBackground: true});
+//     await plugin.renderer.imagePass.updateBackground();
+//     const structure = update.toRoot()
+//         .apply(Download, {url})
+//         .apply(ParseCif)
+//         .apply(TrajectoryFromMmCif)
+//         .apply(ModelFromTrajectory)
+//         .apply(StructureFromModel, {type: {name: 'assembly', params: {}}});
+//
+//     const polymer = structure.apply(StructureComponent, {type: {name: 'static', params: 'polymer'}});
+//     const ligand = structure.apply(StructureComponent, {type: {name: 'static', params: 'ligand'}});
+//     polymer.apply(StructureRepresentation3D, {
+//         type: {name: 'cartoon', params: {alpha: 1, ignoreLight: true}},
+//         colorTheme: {name: 'uniform', params: {value: Color(0x888888)}},
+//     });
+//     ligand.apply(StructureRepresentation3D, {
+//         type: {name: 'ball-and-stick', params: {sizeFactor: 0.15}},
+//         sizeTheme: {name: 'physical', params: {}},
+//     });
+//
+//     await update.commit();
+//     plugin.canvas3d?.commit(true);
+//     await PluginCommands.Camera.OrientAxes(plugin, {durationMs: 0});
+//     plugin.canvas3d?.commit(true);
+//
+//
+//     fs.mkdirSync(outDirectory, {recursive: true});
+//     const outputFilePath = outDirectory + path.basename(url, path.extname(url))
+//     await exportMovie(plugin, outputFilePath);
+//     await plugin.clear();
+//     plugin.dispose();
+// }
 
 async function main() {
     const args = parseArguments();
