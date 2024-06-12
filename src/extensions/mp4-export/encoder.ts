@@ -128,7 +128,7 @@ export async function encodeMp4Animation<A extends PluginStateAnimation>(plugin:
 
 export async function encodeWebmAnimation<A extends PluginStateAnimation>(plugin: PluginContext, ctx: RuntimeContext, params: Mp4EncoderParams<A>, outputFilename: string) {
     try {
-        console.time(outputFilename)
+        // console.time(outputFilename)
 
         await ctx.update({message: 'Initializing...', isIndeterminate: true});
 
@@ -198,7 +198,7 @@ export async function encodeWebmAnimation<A extends PluginStateAnimation>(plugin
                 '-alpha_quality 0.5',
             ])
             .on('end', () => {
-                console.timeEnd(outputFilename)
+                // console.timeEnd(outputFilename)
             }).save(outputFilename+'.mov');
 
         ffmpeg(Readable.from(images), {logger: console})
