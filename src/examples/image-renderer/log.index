@@ -1,0 +1,58 @@
+PDB ID: 1cbs
+Source URL: https://www.ebi.ac.uk/pdbe/entry-files/download/5my9_updated.cif
+Outputs: ../outputs_1qtn-4/
+To {
+  state: {
+    state: State {
+      errorFree: [33mtrue[39m,
+      ev: [36m[Function][39m,
+      globalContext: [36m[HeadlessPluginContext][39m,
+      events: [36m[Object][39m,
+      behaviors: [36m[Object][39m,
+      actions: [36m[StateActionManager][39m,
+      cells: [36m[Map][39m,
+      spine: [36m[Impl][39m,
+      tryGetCellData: [36m[Function (anonymous)][39m,
+      historyCapacity: [33m5[39m,
+      history: [],
+      undoingHistory: [33mfalse[39m,
+      inTransaction: [33mfalse[39m,
+      inTransactionError: [33mfalse[39m,
+      _inUpdate: [33mfalse[39m,
+      reverted: [33mfalse[39m,
+      updateQueue: [36m[AsyncQueue][39m,
+      _tree: [36m[TransientTree][39m,
+      runTask: [36m[Function (anonymous)][39m
+    },
+    tree: TransientTree {
+      tree: [36m[Impl][39m,
+      transforms: [36m[Map][39m,
+      children: [36m[Map][39m,
+      dependencies: [36m[Map][39m,
+      changedNodes: [33mtrue[39m,
+      changedChildren: [33mtrue[39m,
+      changedDependencies: [33mfalse[39m,
+      _childMutations: [36m[Map][39m,
+      _dependencyMutations: [90mundefined[39m,
+      _stateUpdates: [90mundefined[39m
+    },
+    actions: [ [36m[Object][39m, [36m[Object][39m, [36m[Object][39m, [36m[Object][39m, [36m[Object][39m ],
+    editInfo: {
+      applied: [33mfalse[39m,
+      sourceTree: [36m[TransientTree][39m,
+      count: [33m5[39m,
+      lastUpdate: [32m'oGQkN-WJz-ZB594AfMq-fw'[39m
+    }
+  },
+  root: Root {
+    state: {
+      state: [36m[State][39m,
+      tree: [36m[TransientTree][39m,
+      actions: [36m[Array][39m,
+      editInfo: [36m[Object][39m
+    }
+  },
+  ref: [32m'oGQkN-WJz-ZB594AfMq-fw'[39m
+}
+Video export: 4.782s
+ffmpeg: 12.153s
