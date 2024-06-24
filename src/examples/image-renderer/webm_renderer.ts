@@ -65,8 +65,7 @@ async function exportMovie(plugin: HeadlessPluginContext, filename: string) {
     const task = Task.create('Export Movie', async ctx => {
         const width = 1280; // Adjust width and height as needed
         const height = 720;
-        // const width = 853; // Adjust width and height as needed
-        // const height = 480;
+
         const anim = plugin.managers.animation.animations.find((a: {
             name: string;
         }) => a.name === 'built-in.animate-camera-spin');
