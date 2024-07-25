@@ -161,7 +161,7 @@ export async function encodeWebmAnimation<A extends PluginStateAnimation>(plugin
         if (params.customBackground !== void 0) {
             plugin.canvas3d?.setProps({
                 renderer: {backgroundColor: params.customBackground},
-                transparentBackground: false
+                transparentBackground: true
             }, true);
         }
 
@@ -186,9 +186,10 @@ export async function encodeWebmAnimation<A extends PluginStateAnimation>(plugin
             images.push(new Uint8Array(frame.data));
         }
         // console.timeEnd('Rendering');
-
         ffmpeg(Readable.from(images), {logger: console})
-            .videoCodec("hevc_videotoolbox")
+            // .videoCodec("hevc_videotoolbox")
+            .videoCodec("hevc_nvenc")
+            // .videoCodec("libx265")
             .addInputOption([
                 `-s ${width}x${height}`,
                 `-pix_fmt rgba`,
@@ -197,7 +198,14 @@ export async function encodeWebmAnimation<A extends PluginStateAnimation>(plugin
             .inputFormat('rawvideo')
             .addOption([
                 '-tag:v hvc1',
-                '-alpha_quality 0.5',
+                // '-pix_fmt yuva420p',
+                // '-crf 28',
+                // '-preset medium'
+                // '-profile:v 1',
+                // '-b:v 20k',
+                // '-crf 50',
+                // `-qscale:v 1`,
+                // '-alpha_bits 1',
             ])
             .on('end', () => {
                 // console.timeEnd(outputFilename)
